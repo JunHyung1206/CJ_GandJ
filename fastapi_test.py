@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--config','-c', type=str, default='')
 args, _ = parser.parse_known_args()
 
-conf = OmegaConf.load('./config/config.yaml')
+conf = OmegaConf.load(f'./config/config.yaml')
 
 # 도로명주소, Chat GPT api_key 값 할당
 api_key = conf.api
@@ -104,65 +104,42 @@ def create_response(item : RequestJSON):
     response = ResponseJSON(HEADER=HeaderItem())
     chunk_list = lambda lst,chunk_size : [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
     
+    Large_Size = 100
+    Large = [dict(i) for i in dict(item)['requestList']]
+    
+    Large_Chunk = chunk_list(Large, Large_Size)
+    
+    Total_list = []
+
+    for l in Large_Chunk:
     # 청크로 나눠서 inference 한 후 chatgpt_result 반환
-    chunk_size = 10
-    input_data = [dict(i) for i in dict(item)['requestList']]
-    data_chunk = chunk_list(input_data, chunk_size)
-    
-    
-    lock = Lock()
-    q = Queue()
-    processes = []
-    
-    for i in data_chunk:
-        p = Process(target=inference, args=(api_key, {"requestList":i}, lock, q))
-        processes.append(p)
-        p.start()
-    
-    for p in processes:
-        p.join()
+        chunk_size = 10
+        input_data = [dict(i) for i in l]
+        data_chunk = chunk_list(input_data, chunk_size)
         
-    chatgpt_result = []
-    while not q.empty():
-        chatgpt_result.append(q.get())
-    chatgpt_result = list(chain(*chatgpt_result))
+        lock = Lock()
+        q = Queue()
+        processes = []
+        
+        for i in data_chunk:
+            p = Process(target=inference, args=(api_key, {"requestList":i}, lock, q))
+            processes.append(p)
+            p.start()
+        
+        for p in processes:
+            p.join()
+            
+        chatgpt_result = []
+        while not q.empty():
+            chatgpt_result.append(q.get())
+        chatgpt_result = list(chain(*chatgpt_result))
 
-    body_items = [BodyItem(**{"seq":str(i['seq']),"resultAddress":i['resultAddress']}) for i in chatgpt_result]
-    # input_df = pd.DataFrame(input_data)
-    # result_df = pd.DataFrame(chatgpt_result)
+        body_items = [BodyItem(**{"seq":str(i['seq']),"resultAddress":i['resultAddress']}) for i in chatgpt_result]
+        Total_list.append(body_items)
 
-    # # 재시도할 횟수
-    # retry = 2
-    # for r in range(retry):
-    #     no_answer_df =  input_df[result_df['resultAddress']=='답 없음'] # 답 없음으로 나온 결과들 다시 뽑아내기
-        
-    #     input_data = [{'seq':seq,'requestAddress':address} for seq,address in zip(no_answer_df['seq'],no_answer_df['requestAddress'])]
-    #     data_chunk = chunk_list(input_data, chunk_size)
-        
-    #     q = Queue()
-    #     processes = []
-        
-    #     for i in data_chunk:
-    #         p = Process(target=inference, args=(api_key, {"requestList":i}, lock, q))
-    #         processes.append(p)
-    #         p.start()
-        
-    #     for p in processes:
-    #         p.join()
-        
-    #     chatgpt_result = []
-    #     while not q.empty():
-    #         chatgpt_result.append(q.get())
-    #     chatgpt_result = list(chain(*chatgpt_result))
-        
-    #     for i in chatgpt_result:
-    #         result_df.loc[result_df['seq'] == i['seq'],'resultAddress'] = i['resultAddress']
-
+    Total_items = list(chain(*Total_list))
     
-    response.BODY = body_items
+    response.BODY = Total_items
     return response
 
 app.include_router(custom_router)
-
-if __name__ == "__main__":
-    uvicorn.run("fastapi_test:app")
