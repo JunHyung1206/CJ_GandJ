@@ -5,21 +5,15 @@ from starlette.requests import Request
 from starlette.responses import Response
 from pydantic import BaseModel, Field
 from typing import List, Optional
-import uvicorn
 from omegaconf import OmegaConf
-import argparse
 from model import inference
 from multiprocessing import Process, Lock, Queue
 import os
 import openai
 from itertools import chain
-
+import pandas as pd
 
 # Argument
-parser = argparse.ArgumentParser()
-parser.add_argument('--config','-c', type=str, default='')
-args, _ = parser.parse_known_args()
-
 conf = OmegaConf.load(f'./config/config.yaml')
 
 # 도로명주소, Chat GPT api_key 값 할당
@@ -110,13 +104,16 @@ def create_response(item : RequestJSON):
     Large_Chunk = chunk_list(Large, Large_Size)
     
     Total_list = []
-
+    
     for l in Large_Chunk:
     # 청크로 나눠서 inference 한 후 chatgpt_result 반환
+        df = pd.DataFrame(l)
+        df["resultAddress"] = "" 
+        
         chunk_size = 10
         input_data = [dict(i) for i in l]
         data_chunk = chunk_list(input_data, chunk_size)
-        
+
         lock = Lock()
         q = Queue()
         processes = []
@@ -133,8 +130,11 @@ def create_response(item : RequestJSON):
         while not q.empty():
             chatgpt_result.append(q.get())
         chatgpt_result = list(chain(*chatgpt_result))
-
-        body_items = [BodyItem(**{"seq":str(i['seq']),"resultAddress":i['resultAddress']}) for i in chatgpt_result]
+        
+        for i in chatgpt_result:
+            df.loc[df["seq"] == i['seq'],'resultAddress'] = i['resultAddress']
+            
+        body_items = [BodyItem(**{"seq": seq,"resultAddress":address}) for seq,address in zip(df["seq"],df['resultAddress'])]
         Total_list.append(body_items)
 
     Total_items = list(chain(*Total_list))
