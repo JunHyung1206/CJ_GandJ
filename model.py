@@ -7,7 +7,7 @@ from langchain import PromptTemplate
 from langchain.llms import OpenAI
 import os
 
-def inference(api_key,input, l,result_queue):
+def inference(api_key,input, l,result_queue, idx):
     # Define the JSON Schema
     result_schema = {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -120,9 +120,9 @@ def inference(api_key,input, l,result_queue):
         temperature_value = 0.4
         while fail_code:
             llm = OpenAI(
-                    model_name="gpt-3.5-turbo",
+                    model_name="gpt-3.5-turbo-16k",
                     temperature = temperature_value,
-                    max_tokens = 1000,
+                    max_tokens = 3000,
                     top_p = 0.3,
                 )
             result = llm(prompt)
@@ -148,8 +148,8 @@ def inference(api_key,input, l,result_queue):
     # print("chat 실행")
     # print(post_data)
     # 도로명 주소 api 실행 후
-    api_result = [{"seq":i['seq'],"resultAddress":get_address(api_key,i['requestAddress'])} for i in post_data]
-
+    api_result = [{"seq":i['seq'],"resultAddress":get_address(api_key[d%2],i['requestAddress'])} for d,i in enumerate(post_data)]
+    print("도로명주소 완료")
     l.acquire()
     try:
         result_queue.put(api_result)
