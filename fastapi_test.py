@@ -119,7 +119,7 @@ def create_response(item : RequestJSON):
         processes = []
         
         for idx, chunk in enumerate(data_chunk):
-            p = Process(target=inference, args=(api_key, {"requestList":chunk}, lock, q, idx))
+            p = Process(target=inference, args=(api_key, {"requestList":chunk}, lock, q))
             processes.append(p)
             p.start()
         
