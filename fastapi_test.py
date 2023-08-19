@@ -108,7 +108,7 @@ def create_response(item : RequestJSON):
     for l in Large_Chunk:
     # 청크로 나눠서 inference 한 후 chatgpt_result 반환
         df = pd.DataFrame(l)
-        df["resultAddress"] = "" 
+        df["resultAddress"] = "답 없음" 
         
         chunk_size = 10
         input_data = [dict(i) for i in l]
@@ -118,8 +118,8 @@ def create_response(item : RequestJSON):
         q = Queue()
         processes = []
         
-        for i in data_chunk:
-            p = Process(target=inference, args=(api_key, {"requestList":i}, lock, q))
+        for idx, chunk in enumerate(data_chunk):
+            p = Process(target=inference, args=(api_key, {"requestList":chunk}, lock, q, idx))
             processes.append(p)
             p.start()
         

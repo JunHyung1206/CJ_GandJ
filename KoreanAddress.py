@@ -7,7 +7,7 @@ def get_address(api_key, word):
         return "답 없음"
     url = f'https://business.juso.go.kr/addrlink/addrLinkApi.do?currentPage=1&countPerPage%20=10&keyword={word}&confmKey={api_key}&hstryYn=Y&firstSort=road'
 
-    response = requests.get(url, timeout=60)
+    response = requests.get(url)
     result = response.text
     soup = BeautifulSoup(result, 'xml')
     success = soup.find('totalCount').text
