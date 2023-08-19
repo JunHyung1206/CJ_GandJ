@@ -94,10 +94,21 @@ def inference(api_key,input, l,result_queue, idx):
     Even if you can infer through another requestAddress, you should only translate it through the address shown in seq.
     - You should write all the answers in Korean. There should be no less translated parts of English.
     - Please answer in order of wide area to narrow area.
-    - You must make it into a complete dict(). In the middle, '...' should not be created.
+    
+    
+    
+    |Start of Previous Output|
+    - The value below is your previous output. If there is a value, it is likely that it has not been completed, so follow it up and derive Output.
+    - You must make it into a complete json. In the middle, '...' should not be created.
+    {Prev_result}
+    
+    |End of Previous Output|
     
     Input:
     {Address_Input}
+    
+    Output:
+    
     """
 
     # 전처리 추가
@@ -108,11 +119,12 @@ def inference(api_key,input, l,result_queue, idx):
     state = False
 
     while(not state):
+        prev_result = None
         prompt = PromptTemplate(
-            input_variables=["Address_Input", "output_schema"],
+            input_variables=["Address_Input", "output_schema", "Prev_result"],
             template=template,
         )
-        prompt = prompt.format(Address_Input=pre_data, output_schema=result_schema)   
+        prompt = prompt.format(Address_Input=pre_data, output_schema=result_schema, Prev_result = prev_result)   
 
         fail_code = 1
         fail_count = 0     
@@ -120,9 +132,9 @@ def inference(api_key,input, l,result_queue, idx):
         temperature_value = 0.4
         while fail_code:
             llm = OpenAI(
-                    model_name="gpt-3.5-turbo",
+                    model_name="gpt-3.5-turbo-16k",
                     temperature = temperature_value,
-                    max_tokens = 1000,
+                    max_tokens = 5000,
                     top_p = 0.3,
                 )
             result = llm(prompt)
@@ -139,7 +151,8 @@ def inference(api_key,input, l,result_queue, idx):
                 print(result)
                 fail_count+=1
                 temperature_value += 0.1
-                if fail_count >3:
+                prev_result = result
+                if fail_count >5:
                     raise ValueError
 
         state = validate_json(result, result_schema) and (len(input['requestList']) == len(result['resultList']))
@@ -148,7 +161,7 @@ def inference(api_key,input, l,result_queue, idx):
     # print("chat 실행")
     # print(post_data)
     # 도로명 주소 api 실행 후
-    api_result = [{"seq":i['seq'],"resultAddress":get_address(api_key[idx%2],i['requestAddress'])} for i in post_data]
+    api_result = [{"seq":i['seq'],"resultAddress":get_address(api_key[d%2],i['requestAddress'])} for d,i in enumerate(post_data)]
 
     l.acquire()
     try:

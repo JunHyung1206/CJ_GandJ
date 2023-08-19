@@ -98,7 +98,7 @@ def create_response(item : RequestJSON):
     response = ResponseJSON(HEADER=HeaderItem())
     chunk_list = lambda lst,chunk_size : [lst[i:i + chunk_size] for i in range(0, len(lst), chunk_size)]
     
-    Large_Size = 100
+    Large_Size = 160
     Large = [dict(i) for i in dict(item)['requestList']]
     
     Large_Chunk = chunk_list(Large, Large_Size)
@@ -110,7 +110,7 @@ def create_response(item : RequestJSON):
         df = pd.DataFrame(l)
         df["resultAddress"] = "" 
         
-        chunk_size = 10
+        chunk_size = 20
         input_data = [dict(i) for i in l]
         data_chunk = chunk_list(input_data, chunk_size)
 
