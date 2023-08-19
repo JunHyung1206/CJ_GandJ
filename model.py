@@ -20,7 +20,7 @@ def inference(api_key,input, l,result_queue):
                 "type": "object",
                 "properties": {
                     "seq": {
-                        "type": "integer",
+                        "type": "string",
                     },
                     "requestAddress": {
                         "type": "string"
@@ -103,7 +103,8 @@ def inference(api_key,input, l,result_queue):
     # 전처리 추가
     pre_data = dict()
     pre_data["requestList"] = [{"seq":i["seq"],"requestAddress":pre_processing(i["requestAddress"])}for i in input["requestList"]]
-
+    # print("전처리 수행")
+    # print(pre_data)
     state = False
 
     while(not state):
@@ -144,7 +145,8 @@ def inference(api_key,input, l,result_queue):
         state = validate_json(result, result_schema) and (len(input['requestList']) == len(result['resultList']))
         
     post_data = [{'seq': i["seq"], 'requestAddress' : post_processing(i["requestAddress"]),'ChatGPTAddress' : i["requestAddress"]} for i in result["resultList"]]
-    
+    # print("chat 실행")
+    # print(post_data)
     # 도로명 주소 api 실행 후
     api_result = [{"seq":i['seq'],"resultAddress":get_address(api_key,i['requestAddress'])} for i in post_data]
 
